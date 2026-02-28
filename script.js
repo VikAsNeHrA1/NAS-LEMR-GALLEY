@@ -2,10 +2,13 @@
 // 1. FIREBASE CONFIGURATION
 // ==========================================
 const firebaseConfig = {
-  apiKey: "PASTE_YOUR_API_KEY_HERE", // <--- REQUIRED: Grab this from Firebase Project Settings
+  apiKey: "AIzaSyDw7WodKXWbh0mXwDY7QZExxyrfnq6vY9s",
   authDomain: "nas-lemoore-galley.firebaseapp.com",
   databaseURL: "https://nas-lemoore-galley-default-rtdb.firebaseio.com",
-  projectId: "nas-lemoore-galley"
+  projectId: "nas-lemoore-galley",
+  storageBucket: "nas-lemoore-galley.firebasestorage.app",
+  messagingSenderId: "339494826847",
+  appId: "1:339494826847:web:667bdd80192c9b6c30fcea"
 };
 
 // Initialize Firebase

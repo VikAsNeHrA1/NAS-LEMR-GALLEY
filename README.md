@@ -2,7 +2,7 @@
 
 A self-contained, single-file web application for managing the NAS Lemoore Fleet Galley menu, operating hours, announcements, and contact information.
 
-**Live at:** `https://<your-username>.github.io/nas-lemoore-galley/`
+**Live at:** `https://vikasnehra1.github.io/NAS-LEMR-GALLEY/`
 
 ---
 

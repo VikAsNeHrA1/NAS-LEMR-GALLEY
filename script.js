@@ -1,3 +1,21 @@
+// ==========================================
+// 1. FIREBASE CONFIGURATION
+// ==========================================
+const firebaseConfig = {
+  apiKey: "PASTE_YOUR_API_KEY_HERE", // <--- REQUIRED: Grab this from Firebase Project Settings
+  authDomain: "nas-lemoore-galley.firebaseapp.com",
+  databaseURL: "https://nas-lemoore-galley-default-rtdb.firebaseio.com",
+  projectId: "nas-lemoore-galley"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const dbRef = db.ref('galley_data'); // This is the "folder" in your database
+
+// ==========================================
+// 2. CONSTANTS & DEFAULTS
+// ==========================================
 const DAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const MEALS = ['breakfast', 'lunch', 'dinner'];
@@ -8,44 +26,47 @@ const DEFAULTS = {
   announcement: "Welcome to the NAS Lemoore Fleet Galley! Menu is updated daily. Galley operations are subject to change based on mission requirements.",
   hours: { breakfast: "0600 – 0800", lunch: "1100 – 1300", dinner: "1700 – 1900", special: "Closed on Federal Holidays" },
   contact: "📍 Building 944, NAS Lemoore, CA 93246\n📞 (559) 998-XXXX\n✉️ galley@nas-lemoore.navy.mil\n🌐 Report issues to the duty officer",
+  password: "galley2025",
+  lastUpdated: new Date().toISOString(),
   meals: {
-    breakfast: { items: ["Scrambled Eggs", "Crispy Bacon & Sausage", "Buttermilk Pancakes", "Fresh Seasonal Fruit", "Assorted Cereals & Yogurt"], photo: "" },
-    lunch: { items: ["Grilled Chicken Sandwich", "Beef Tacos w/ Toppings Bar", "Caesar Salad", "Vegetarian Pasta", "Navy Bean Soup"], photo: "" },
-    dinner: { items: ["BBQ Beef Brisket", "Mashed Potatoes & Gravy", "Steamed Broccoli", "Dinner Rolls", "Chocolate Cake"], photo: "" }
+    breakfast: { items: ["Scrambled Eggs", "Crispy Bacon & Sausage", "Buttermilk Pancakes"], photo: "" },
+    lunch: { items: ["Grilled Chicken Sandwich", "Beef Tacos w/ Toppings Bar", "Caesar Salad"], photo: "" },
+    dinner: { items: ["BBQ Beef Brisket", "Mashed Potatoes & Gravy", "Steamed Broccoli"], photo: "" }
   }
 };
 
-function load(k, d) {
-  try {
-    const v = localStorage.getItem('galley_' + k);
-    return v ? JSON.parse(v) : d;
-  } catch {
-    return d;
-  }
-}
-
-function save(k, v) {
-  try {
-    localStorage.setItem('galley_' + k, JSON.stringify(v));
-  } catch {}
-}
-
-let state = {
-  announcement: load('announcement', DEFAULTS.announcement),
-  hours: load('hours', DEFAULTS.hours),
-  contact: load('contact', DEFAULTS.contact),
-  meals: load('meals', DEFAULTS.meals),
-  password: load('password', 'galley2025'), // <-- CHANGE DEFAULT PASSWORD HERE BEFORE UPLOADING
-  lastUpdated: load('lastUpdated', null)
-};
-
-// Clean up old keys from previous versions
-if (state.hours.midrats) { delete state.hours.midrats; save('hours', state.hours); }
-if (state.hours.brunch) { delete state.hours.brunch; save('hours', state.hours); }
-MEALS.forEach(m => { if (!state.meals[m]) state.meals[m] = { items: [], photo: "" }; });
-
+let state = null; // This will hold the live data from Firebase
 let isStaff = false;
 
+// ==========================================
+// 3. REAL-TIME CLOUD SYNC
+// ==========================================
+// This listener runs immediately on load, AND anytime ANYONE changes the data
+dbRef.on('value', (snapshot) => {
+  const data = snapshot.val();
+  
+  if (!data) {
+    // If the database is completely empty (first run), populate it with defaults
+    console.log("Database empty. Populating with defaults...");
+    dbRef.set(DEFAULTS);
+  } else {
+    // Data exists! Update our local state and redraw the screen.
+    state = data;
+    render();
+  }
+});
+
+// Master function to save data back to Firebase
+function saveToCloud(successMsg) {
+  state.lastUpdated = new Date().toISOString();
+  dbRef.set(state)
+    .then(() => { if(successMsg) toast(successMsg); })
+    .catch((error) => { toast('Error saving to cloud: ' + error.message); });
+}
+
+// ==========================================
+// 4. UI RENDERER & UTILITIES
+// ==========================================
 function getStatus() {
   const h = new Date().getHours() * 100 + new Date().getMinutes();
   return (h >= 600 && h <= 800) || (h >= 1100 && h <= 1300) || (h >= 1700 && h <= 1900) ? 'open' : 'closed';
@@ -64,11 +85,6 @@ function esc(s) {
   return d.innerHTML;
 }
 
-function markUpdated() {
-  state.lastUpdated = new Date().toISOString();
-  save('lastUpdated', state.lastUpdated);
-}
-
 function toast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -78,6 +94,8 @@ function toast(msg) {
 }
 
 function render() {
+  if (!state) return; // Wait until data loads from cloud
+
   const now = new Date();
   document.getElementById('date-display').innerHTML = DAY_FULL[now.getDay()] + '<br>' + MONTHS[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
 
@@ -91,8 +109,6 @@ function render() {
   if (state.lastUpdated) {
     const d = new Date(state.lastUpdated);
     lu.textContent = 'Last updated: ' + d.toLocaleDateString() + ' at ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  } else {
-    lu.textContent = '';
   }
 
   const cm = getCurrentMeal();
@@ -118,8 +134,11 @@ function render() {
   }).join('');
 }
 
-// Auth
+// ==========================================
+// 5. STAFF AUTHENTICATION & MODALS
+// ==========================================
 document.getElementById('staff-login-btn').onclick = function() {
+  if (!state) return toast("Wait for database to connect...");
   document.getElementById('login-password').value = '';
   document.getElementById('login-error').style.display = 'none';
   openModal('login-modal');
@@ -134,7 +153,7 @@ function doLogin() {
     document.getElementById('staff-logout-btn').style.display = 'inline-block';
     document.getElementById('staff-toolbar').classList.add('visible');
     render();
-    toast('Staff mode active — you can now edit everything.');
+    toast('Staff mode active.');
   } else {
     document.getElementById('login-error').style.display = 'block';
   }
@@ -149,37 +168,21 @@ document.getElementById('staff-logout-btn').onclick = function() {
   toast('Logged out.');
 };
 
-// Modals
 function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(function(el) { el.addEventListener('click', function(e) { if (e.target === el) el.classList.remove('open'); }); });
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(function(m) { m.classList.remove('open'); }); });
 
-document.querySelectorAll('.modal-overlay').forEach(function(el) {
-  el.addEventListener('click', function(e) {
-    if (e.target === el) el.classList.remove('open');
-  });
-});
-
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') {
-    document.querySelectorAll('.modal-overlay.open').forEach(function(m) { m.classList.remove('open'); });
-  }
-});
-
-// Announcement
-function openAnnEdit() {
-  document.getElementById('ann-input').value = state.announcement;
-  openModal('ann-modal');
-}
+// ==========================================
+// 6. STAFF EDIT FUNCTIONS
+// ==========================================
+function openAnnEdit() { document.getElementById('ann-input').value = state.announcement; openModal('ann-modal'); }
 function saveAnnouncement() {
   state.announcement = document.getElementById('ann-input').value.trim() || DEFAULTS.announcement;
-  save('announcement', state.announcement);
-  markUpdated();
+  saveToCloud('Announcement universally updated!');
   closeModal('ann-modal');
-  render();
-  toast('Announcement updated!');
 }
 
-// Hours
 function openHoursEdit() {
   document.getElementById('h-breakfast').value = state.hours.breakfast;
   document.getElementById('h-lunch').value = state.hours.lunch;
@@ -194,28 +197,17 @@ function saveHours() {
     dinner: document.getElementById('h-dinner').value || state.hours.dinner,
     special: document.getElementById('h-special').value || state.hours.special
   };
-  save('hours', state.hours);
-  markUpdated();
+  saveToCloud('Hours universally updated!');
   closeModal('hours-modal');
-  render();
-  toast('Hours updated!');
 }
 
-// Contact
-function openContactEdit() {
-  document.getElementById('contact-input').value = state.contact;
-  openModal('contact-modal');
-}
+function openContactEdit() { document.getElementById('contact-input').value = state.contact; openModal('contact-modal'); }
 function saveContact() {
   state.contact = document.getElementById('contact-input').value.trim() || DEFAULTS.contact;
-  save('contact', state.contact);
-  markUpdated();
+  saveToCloud('Contact info universally updated!');
   closeModal('contact-modal');
-  render();
-  toast('Contact info updated!');
 }
 
-// Meal Edit
 function openMealEdit(meal) {
   document.getElementById('editing-meal').value = meal;
   document.getElementById('meal-modal-title').textContent = 'Edit ' + MEAL_LABELS[meal];
@@ -228,14 +220,10 @@ function saveMeal() {
   var meal = document.getElementById('editing-meal').value;
   var items = document.getElementById('meal-items-input').value.split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
   state.meals[meal] = { items: items, photo: document.getElementById('meal-photo-input').value.trim() };
-  save('meals', state.meals);
-  markUpdated();
+  saveToCloud(MEAL_LABELS[meal] + ' menu universally updated!');
   closeModal('meal-modal');
-  render();
-  toast(MEAL_LABELS[meal] + ' menu saved!');
 }
 
-// Settings
 function openSettingsModal() {
   document.getElementById('new-password').value = '';
   document.getElementById('confirm-password').value = '';
@@ -255,91 +243,16 @@ function changePassword() {
   if (np !== cp) { e.textContent = 'Passwords do not match.'; e.style.display = 'block'; return; }
   
   state.password = np;
-  save('password', state.password);
+  saveToCloud(); // Save silently
   s.style.display = 'block';
   document.getElementById('new-password').value = '';
   document.getElementById('confirm-password').value = '';
-  toast('Password changed!');
+  toast('Universal password changed successfully!');
 }
 
-// Export / Import
-function exportData() {
-  var data = {
-    _format: 'nas-lemoore-galley-v3',
-    _exported: new Date().toISOString(),
-    announcement: state.announcement,
-    hours: state.hours,
-    contact: state.contact,
-    meals: state.meals,
-    lastUpdated: state.lastUpdated
-  };
-  var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'galley-data-' + new Date().toISOString().slice(0, 10) + '.json';
-  a.click();
-  URL.revokeObjectURL(a.href);
-  toast('Data exported!');
-}
-
-document.getElementById('import-file').addEventListener('change', function(e) {
-  var file = e.target.files[0];
-  if (!file) return;
-  var r = new FileReader();
-  r.onload = function(ev) {
-    try {
-      var d = JSON.parse(ev.target.result);
-      if (d.announcement) { state.announcement = d.announcement; save('announcement', state.announcement); }
-      if (d.hours) {
-        state.hours = {
-          breakfast: d.hours.breakfast || state.hours.breakfast,
-          lunch: d.hours.lunch || state.hours.lunch,
-          dinner: d.hours.dinner || state.hours.dinner,
-          special: d.hours.special || state.hours.special
-        };
-        save('hours', state.hours);
-      }
-      if (d.contact) { state.contact = d.contact; save('contact', state.contact); }
-      if (d.meals) { state.meals = d.meals; save('meals', state.meals); }
-      markUpdated();
-      render();
-      toast('Data imported!');
-    } catch (err) {
-      toast('Error: Invalid file.');
-    }
-  };
-  r.readAsText(file);
-  e.target.value = '';
-});
-
-function resetAllData() {
-  if (!confirm('Reset ALL data to defaults? Cannot be undone.')) return;
-  if (!confirm('Are you sure?')) return;
-  
-  state.announcement = DEFAULTS.announcement;
-  state.hours = JSON.parse(JSON.stringify(DEFAULTS.hours));
-  state.contact = DEFAULTS.contact;
-  state.meals = JSON.parse(JSON.stringify(DEFAULTS.meals));
-  state.password = 'galley2025';
-  state.lastUpdated = null;
-  
-  ['announcement', 'hours', 'contact', 'meals', 'password', 'lastUpdated'].forEach(function(k) {
-    save(k, state[k]);
-  });
-  
-  // Clear deprecated keys just in case
-  try { localStorage.removeItem('galley_weeklyMenu'); } catch (e) {}
-  
-  closeModal('settings-modal');
-  render();
-  toast('All data reset.');
-}
-
-// Initial render
-render();
-
-// Check status every minute
+// Setup background timer for the "Open/Closed" indicator
 setInterval(function() {
+  if(!state) return;
   var s = getStatus();
   document.getElementById('galley-status').innerHTML = '<span class="galley-status ' + s + '"><span class="dot"></span>' + (s === 'open' ? 'Now Serving' : 'Closed') + '</span>';
 }, 60000);

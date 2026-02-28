@@ -39,7 +39,7 @@
 
     <div id="announcement-bar">
       <div class="ann-label">📢 Galley Announcement</div>
-      <div id="announcement-text"></div>
+      <div id="announcement-text">Loading updates...</div>
     </div>
 
     <div class="last-updated" id="last-updated"></div>
@@ -47,11 +47,11 @@
     <div class="info-row">
       <div class="info-card">
         <h3>🕐 Operating Hours</h3>
-        <div class="hours-grid" id="hours-display"></div>
+        <div class="hours-grid" id="hours-display">Loading...</div>
       </div>
       <div class="info-card">
         <h3>📞 Contact & Location</h3>
-        <div id="contact-info"></div>
+        <div id="contact-info">Loading...</div>
       </div>
     </div>
 
@@ -64,135 +64,30 @@
       </div>
     </div>
 
-    <div class="meal-grid" id="meal-grid"></div>
+    <div class="meal-grid" id="meal-grid">
+      <div style="text-align:center; grid-column: 1 / -1; padding: 2rem; color: var(--text-muted);">
+        Connecting to database...
+      </div>
+    </div>
   </main>
 
   <footer>
     NAS Lemoore Fleet Galley &nbsp;·&nbsp; Naval Air Station Lemoore, CA 93246
-    <br><span style="font-size:.7rem;opacity:.6;margin-top:.2rem;display:inline-block">Menu data stored locally in your browser · Staff: use Export/Import in Settings to share across devices</span>
+    <br><span style="font-size:.7rem;opacity:.6;margin-top:.2rem;display:inline-block">Menu data stored securely in the cloud · Updates sync live in real-time</span>
   </footer>
 
   <div id="toast"></div>
-  <input type="file" id="import-file" accept=".json">
 
-  <div class="modal-overlay" id="login-modal">
-    <div class="modal" style="max-width:380px">
-      <button class="close-btn" onclick="closeModal('login-modal')">✕</button>
-      <h2>Staff Login</h2>
-      <div class="form-group">
-        <label>Password</label>
-        <input type="password" id="login-password" placeholder="Enter staff password" onkeydown="if(event.key==='Enter')doLogin()">
-        <div class="error-msg" id="login-error">Incorrect password. Try again.</div>
-      </div>
-      <div class="modal-actions">
-        <button class="btn btn-outline" onclick="closeModal('login-modal')">Cancel</button>
-        <button class="btn btn-gold" onclick="doLogin()">Login</button>
-      </div>
-    </div>
-  </div>
+  <div class="modal-overlay" id="login-modal"><div class="modal" style="max-width:380px"><button class="close-btn" onclick="closeModal('login-modal')">✕</button><h2>Staff Login</h2><div class="form-group"><label>Password</label><input type="password" id="login-password" placeholder="Enter staff password" onkeydown="if(event.key==='Enter')doLogin()"><div class="error-msg" id="login-error">Incorrect password. Try again.</div></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('login-modal')">Cancel</button><button class="btn btn-gold" onclick="doLogin()">Login</button></div></div></div>
+  <div class="modal-overlay" id="ann-modal"><div class="modal"><button class="close-btn" onclick="closeModal('ann-modal')">✕</button><h2>Edit Announcement</h2><div class="form-group"><label>Announcement Text</label><textarea id="ann-input" rows="4" placeholder="Enter updates, closures, or special notices..."></textarea></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('ann-modal')">Cancel</button><button class="btn btn-gold" onclick="saveAnnouncement()">Save</button></div></div></div>
+  <div class="modal-overlay" id="hours-modal"><div class="modal"><button class="close-btn" onclick="closeModal('hours-modal')">✕</button><h2>Edit Operating Hours</h2><div class="form-row"><div class="form-group"><label>Breakfast</label><input type="text" id="h-breakfast" placeholder="0600–0800"></div><div class="form-group"><label>Lunch</label><input type="text" id="h-lunch" placeholder="1100–1300"></div></div><div class="form-row"><div class="form-group"><label>Dinner</label><input type="text" id="h-dinner" placeholder="1700–1900"></div><div class="form-group"><label>Special Note</label><input type="text" id="h-special" placeholder="Closed on Federal Holidays"></div></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('hours-modal')">Cancel</button><button class="btn btn-gold" onclick="saveHours()">Save</button></div></div></div>
+  <div class="modal-overlay" id="contact-modal"><div class="modal"><button class="close-btn" onclick="closeModal('contact-modal')">✕</button><h2>Edit Contact Info</h2><div class="form-group"><label>Contact Details</label><textarea id="contact-input" rows="5"></textarea></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('contact-modal')">Cancel</button><button class="btn btn-gold" onclick="saveContact()">Save</button></div></div></div>
+  <div class="modal-overlay" id="meal-modal"><div class="modal"><button class="close-btn" onclick="closeModal('meal-modal')">✕</button><h2 id="meal-modal-title">Edit Meal</h2><input type="hidden" id="editing-meal"><div class="form-group"><label>Menu Items (one per line)</label><textarea id="meal-items-input" rows="8"></textarea></div><div class="form-group"><label>Photo URL (optional)</label><input type="text" id="meal-photo-input"></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('meal-modal')">Cancel</button><button class="btn btn-gold" onclick="saveMeal()">Save</button></div></div></div>
+  <div class="modal-overlay" id="settings-modal"><div class="modal"><button class="close-btn" onclick="closeModal('settings-modal')">✕</button><h2>⚙ Staff Settings</h2><div class="form-group"><label>Change Universal Staff Password</label><div class="form-row"><input type="password" id="new-password" placeholder="New password"><input type="password" id="confirm-password" placeholder="Confirm password"></div><div class="helper">Updates the login password for ALL staff globally.</div><div class="error-msg" id="pw-error"></div><div class="success-msg" id="pw-success">Password updated universally!</div><button class="btn btn-gold btn-sm" onclick="changePassword()" style="margin-top:.5rem">Update Password</button></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('settings-modal')">Close</button></div></div></div>
 
-  <div class="modal-overlay" id="ann-modal">
-    <div class="modal">
-      <button class="close-btn" onclick="closeModal('ann-modal')">✕</button>
-      <h2>Edit Announcement</h2>
-      <div class="form-group">
-        <label>Announcement Text</label>
-        <textarea id="ann-input" rows="4" placeholder="Enter updates, closures, or special notices..."></textarea>
-        <div class="helper">Visible to all visitors at the top of the page.</div>
-      </div>
-      <div class="modal-actions">
-        <button class="btn btn-outline" onclick="closeModal('ann-modal')">Cancel</button>
-        <button class="btn btn-gold" onclick="saveAnnouncement()">Save</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="hours-modal">
-    <div class="modal">
-      <button class="close-btn" onclick="closeModal('hours-modal')">✕</button>
-      <h2>Edit Operating Hours</h2>
-      <div class="form-row">
-        <div class="form-group"><label>Breakfast</label><input type="text" id="h-breakfast" placeholder="0600–0800"></div>
-        <div class="form-group"><label>Lunch</label><input type="text" id="h-lunch" placeholder="1100–1300"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Dinner</label><input type="text" id="h-dinner" placeholder="1700–1900"></div>
-        <div class="form-group"><label>Special Note</label><input type="text" id="h-special" placeholder="Closed on Federal Holidays"></div>
-      </div>
-      <div class="modal-actions">
-        <button class="btn btn-outline" onclick="closeModal('hours-modal')">Cancel</button>
-        <button class="btn btn-gold" onclick="saveHours()">Save</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="contact-modal">
-    <div class="modal">
-      <button class="close-btn" onclick="closeModal('contact-modal')">✕</button>
-      <h2>Edit Contact Info</h2>
-      <div class="form-group">
-        <label>Contact Details</label>
-        <textarea id="contact-input" rows="5" placeholder="Phone, email, building, etc."></textarea>
-      </div>
-      <div class="modal-actions">
-        <button class="btn btn-outline" onclick="closeModal('contact-modal')">Cancel</button>
-        <button class="btn btn-gold" onclick="saveContact()">Save</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="meal-modal">
-    <div class="modal">
-      <button class="close-btn" onclick="closeModal('meal-modal')">✕</button>
-      <h2 id="meal-modal-title">Edit Meal</h2>
-      <input type="hidden" id="editing-meal">
-      <div class="form-group">
-        <label>Menu Items (one per line)</label>
-        <textarea id="meal-items-input" rows="8" placeholder="Scrambled Eggs&#10;Bacon Strips&#10;French Toast"></textarea>
-        <div class="helper">Each line = one menu item. Leave blank for "Menu not yet posted".</div>
-      </div>
-      <div class="form-group">
-        <label>Photo URL (optional)</label>
-        <input type="text" id="meal-photo-input" placeholder="https://example.com/photo.jpg">
-      </div>
-      <div class="modal-actions">
-        <button class="btn btn-outline" onclick="closeModal('meal-modal')">Cancel</button>
-        <button class="btn btn-gold" onclick="saveMeal()">Save</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="settings-modal">
-    <div class="modal">
-      <button class="close-btn" onclick="closeModal('settings-modal')">✕</button>
-      <h2>⚙ Staff Settings</h2>
-      <div class="form-group">
-        <label>Change Staff Password</label>
-        <div class="form-row">
-          <input type="password" id="new-password" placeholder="New password">
-          <input type="password" id="confirm-password" placeholder="Confirm password">
-        </div>
-        <div class="helper">Min 4 characters. Updates login password for this browser.</div>
-        <div class="error-msg" id="pw-error"></div>
-        <div class="success-msg" id="pw-success">Password updated!</div>
-        <button class="btn btn-gold btn-sm" onclick="changePassword()" style="margin-top:.5rem">Update Password</button>
-      </div>
-      <hr style="border-color:var(--border);margin:1.5rem 0">
-      <div class="form-group">
-        <label>Data Management</label>
-        <div class="helper" style="margin-bottom:.6rem">Export galley data as JSON. Import on another device to sync menus & settings.</div>
-        <div style="display:flex;gap:.6rem;flex-wrap:wrap">
-          <button class="btn btn-gold btn-sm" onclick="exportData()">📥 Export Data</button>
-          <button class="btn btn-outline btn-sm" onclick="document.getElementById('import-file').click()">📤 Import Data</button>
-          <button class="btn btn-red btn-sm" onclick="resetAllData()">🗑 Reset All</button>
-        </div>
-      </div>
-      <div class="modal-actions">
-        <button class="btn btn-outline" onclick="closeModal('settings-modal')">Close</button>
-      </div>
-    </div>
-  </div>
-
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  
   <script src="script.js"></script>
 </body>
 </html>

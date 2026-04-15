@@ -85,9 +85,7 @@
   <div class="modal-overlay" id="meal-modal"><div class="modal"><button class="close-btn" onclick="closeModal('meal-modal')">✕</button><h2 id="meal-modal-title">Edit Meal</h2><input type="hidden" id="editing-meal"><div class="form-group"><label>Menu Items (one per line)</label><textarea id="meal-items-input" rows="8"></textarea></div><div class="form-group"><label>Photo URL (optional)</label><input type="text" id="meal-photo-input"></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('meal-modal')">Cancel</button><button class="btn btn-gold" onclick="saveMeal()">Save</button></div></div></div>
   <div class="modal-overlay" id="settings-modal"><div class="modal"><button class="close-btn" onclick="closeModal('settings-modal')">✕</button><h2>⚙ Staff Settings</h2><div class="form-group"><label>Change Universal Staff Password</label><div class="form-row"><input type="password" id="new-password" placeholder="New password"><input type="password" id="confirm-password" placeholder="Confirm password"></div><div class="helper">Updates the login password for ALL staff globally.</div><div class="error-msg" id="pw-error"></div><div class="success-msg" id="pw-success">Password updated universally!</div><button class="btn btn-gold btn-sm" onclick="changePassword()" style="margin-top:.5rem">Update Password</button></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('settings-modal')">Close</button></div></div></div>
 
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-  
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

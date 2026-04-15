@@ -1,20 +1,10 @@
 // ==========================================
-// 1. FIREBASE CONFIGURATION
+// 1. SUPABASE CONFIGURATION
 // ==========================================
-const firebaseConfig = {
-  apiKey: "AIzaSyDw7WodKXWbh0mXwDY7QZExxyrfnq6vY9s",
-  authDomain: "nas-lemoore-galley.firebaseapp.com",
-  databaseURL: "https://nas-lemoore-galley-default-rtdb.firebaseio.com",
-  projectId: "nas-lemoore-galley",
-  storageBucket: "nas-lemoore-galley.firebasestorage.app",
-  messagingSenderId: "339494826847",
-  appId: "1:339494826847:web:667bdd80192c9b6c30fcea"
-};
+const SUPABASE_URL = 'https://vkcgjgofjmunejdqkemn.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_Oz8kYbNnvMonX6uo998XaA_tpfQVhUe';
 
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-const dbRef = db.ref('galley_data'); // This is the "folder" in your database
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ==========================================
 // 2. CONSTANTS & DEFAULTS
@@ -30,7 +20,7 @@ const DEFAULTS = {
   hours: { breakfast: "0600 – 0800", lunch: "1100 – 1300", dinner: "1700 – 1900", special: "Closed on Federal Holidays" },
   contact: "📍 Building 944, NAS Lemoore, CA 93246\n📞 (559) 998-XXXX\n✉️ galley@nas-lemoore.navy.mil\n🌐 Report issues to the duty officer",
   password: "galley2025",
-  lastUpdated: new Date().toISOString(),
+  last_updated: new Date().toISOString(),
   meals: {
     breakfast: { items: ["Scrambled Eggs", "Crispy Bacon & Sausage", "Buttermilk Pancakes"], photo: "" },
     lunch: { items: ["Grilled Chicken Sandwich", "Beef Tacos w/ Toppings Bar", "Caesar Salad"], photo: "" },
@@ -38,33 +28,61 @@ const DEFAULTS = {
   }
 };
 
-let state = null; // This will hold the live data from Firebase
+let state = null;
 let isStaff = false;
 
 // ==========================================
-// 3. REAL-TIME CLOUD SYNC
+// 3. REAL-TIME CLOUD SYNC (SUPABASE)
 // ==========================================
-// This listener runs immediately on load, AND anytime ANYONE changes the data
-dbRef.on('value', (snapshot) => {
-  const data = snapshot.val();
-  
-  if (!data) {
-    // If the database is completely empty (first run), populate it with defaults
-    console.log("Database empty. Populating with defaults...");
-    dbRef.set(DEFAULTS);
-  } else {
-    // Data exists! Update our local state and redraw the screen.
-    state = data;
-    render();
-  }
-});
+async function loadData() {
+  const { data, error } = await supabase
+    .from('galley_data')
+    .select('*')
+    .eq('id', 1)
+    .single();
 
-// Master function to save data back to Firebase
-function saveToCloud(successMsg) {
-  state.lastUpdated = new Date().toISOString();
-  dbRef.set(state)
-    .then(() => { if(successMsg) toast(successMsg); })
-    .catch((error) => { toast('Error saving to cloud: ' + error.message); });
+  if (error || !data) {
+    console.log("No data found. Populating with defaults...");
+    const { error: insertError } = await supabase
+      .from('galley_data')
+      .upsert({ id: 1, ...DEFAULTS });
+    if (insertError) {
+      console.error('Error seeding defaults:', insertError.message);
+      return;
+    }
+    state = { ...DEFAULTS };
+  } else {
+    state = data;
+  }
+  render();
+}
+
+// Subscribe to real-time changes
+supabase
+  .channel('galley_realtime')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'galley_data', filter: 'id=eq.1' }, (payload) => {
+    state = payload.new;
+    render();
+  })
+  .subscribe();
+
+// Initial load
+loadData();
+
+// Save data back to Supabase
+async function saveToCloud(successMsg) {
+  state.last_updated = new Date().toISOString();
+  const { id, ...updateData } = state;
+  const { error } = await supabase
+    .from('galley_data')
+    .update(updateData)
+    .eq('id', 1);
+
+  if (error) {
+    toast('Error saving to cloud: ' + error.message);
+  } else if (successMsg) {
+    toast(successMsg);
+  }
 }
 
 // ==========================================
@@ -97,7 +115,7 @@ function toast(msg) {
 }
 
 function render() {
-  if (!state) return; // Wait until data loads from cloud
+  if (!state) return;
 
   const now = new Date();
   document.getElementById('date-display').innerHTML = DAY_FULL[now.getDay()] + '<br>' + MONTHS[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
@@ -109,8 +127,8 @@ function render() {
   document.getElementById('announcement-text').textContent = state.announcement;
 
   const lu = document.getElementById('last-updated');
-  if (state.lastUpdated) {
-    const d = new Date(state.lastUpdated);
+  if (state.last_updated) {
+    const d = new Date(state.last_updated);
     lu.textContent = 'Last updated: ' + d.toLocaleDateString() + ' at ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
@@ -241,12 +259,12 @@ function changePassword() {
   var s = document.getElementById('pw-success');
   e.style.display = 'none';
   s.style.display = 'none';
-  
+
   if (np.length < 4) { e.textContent = 'Password must be at least 4 characters.'; e.style.display = 'block'; return; }
   if (np !== cp) { e.textContent = 'Passwords do not match.'; e.style.display = 'block'; return; }
-  
+
   state.password = np;
-  saveToCloud(); // Save silently
+  saveToCloud();
   s.style.display = 'block';
   document.getElementById('new-password').value = '';
   document.getElementById('confirm-password').value = '';

@@ -4,7 +4,7 @@
 const SUPABASE_URL = 'https://vkcgjgofjmunejdqkemn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrY2dqZ29mam11bmVqZHFrZW1uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyODMzOTAsImV4cCI6MjA5MTg1OTM5MH0.wEflqT7ECa4dLXk1PL1PsLQCHgVEAXYJeP8UTrhEyE4';
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ==========================================
 // 2. CONSTANTS & DEFAULTS
@@ -35,7 +35,7 @@ let isStaff = false;
 // 3. REAL-TIME CLOUD SYNC (SUPABASE)
 // ==========================================
 async function loadData() {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from('galley_data')
     .select('*')
     .eq('id', 1)
@@ -43,7 +43,7 @@ async function loadData() {
 
   if (error || !data) {
     console.log("No data found. Populating with defaults...");
-    const { error: insertError } = await supabase
+    const { error: insertError } = await supabaseClient
       .from('galley_data')
       .upsert({ id: 1, ...DEFAULTS });
     if (insertError) {
@@ -58,7 +58,7 @@ async function loadData() {
 }
 
 // Subscribe to real-time changes
-supabase
+supabaseClient
   .channel('galley_realtime')
   .on('postgres_changes', { event: '*', schema: 'public', table: 'galley_data', filter: 'id=eq.1' }, (payload) => {
     state = payload.new;
@@ -73,7 +73,7 @@ loadData();
 async function saveToCloud(successMsg) {
   state.last_updated = new Date().toISOString();
   const { id, ...updateData } = state;
-  const { error } = await supabase
+  const { error } = await supabaseClient
     .from('galley_data')
     .update(updateData)
     .eq('id', 1);
